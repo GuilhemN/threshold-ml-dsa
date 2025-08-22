@@ -16,7 +16,7 @@ require (
 	github.com/cloudflare/circl v1.6.0
 )
 
-replace github.com/cloudflare/circl => ../../circl-main
+replace github.com/cloudflare/circl => ../../implementation
 
 require (
 	github.com/benbjohnson/clock v1.3.5 // indirect

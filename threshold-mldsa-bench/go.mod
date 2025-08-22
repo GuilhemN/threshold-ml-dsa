@@ -4,7 +4,7 @@ go 1.22.0
 
 toolchain go1.24.0
 
-replace github.com/cloudflare/circl => ../circl-main
+replace github.com/cloudflare/circl => ../implementation
 
 require (
 	github.com/cloudflare/circl v1.6.0
