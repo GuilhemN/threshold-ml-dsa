@@ -18,7 +18,7 @@ Note that we use only the needed functionality from CIRCL.
 
 We additionally provide our benchmarking tools:
 
-- **go-libp2p folder**: *Threshold ML-DSA* was evaluated with `go-libp2p` for LAN/WAN experiments, see `go-libp2p/examples/chat`.
+- **go-libp2p folder**: *Threshold ML-DSA* was evaluated with [go-libp2p](https://github.com/libp2p/go-libp2p) for LAN/WAN experiments, see `go-libp2p/examples/chat`. Note that we include the codebase of go-libp2p with an example modified.
 - **threshold-mldsa-bench folder**: *Threshold ML-DSA* local benchmarking tools.
 
 We also include the parameter selection scripts:
