@@ -55,6 +55,7 @@ import (
 type ProtocolState struct {
 	sync.Mutex
 	N      int
+	T      int
 	ID     int
 	Params *thmldsa44.ThresholdParams
 	pk     *thmldsa44.PublicKey
@@ -90,6 +91,7 @@ func makeStreamHandler(state *ProtocolState, signature *[]byte, done chan struct
 	}
 }
 
+// Combine the signature
 func runCombine(state *ProtocolState, msg, ctx []byte, pk *thmldsa44.PublicKey, sigOut *[]byte, done chan struct{}) {
 	var sig [thmldsa44.SignatureSize]byte
 
@@ -106,7 +108,7 @@ func runCombine(state *ProtocolState, msg, ctx []byte, pk *thmldsa44.PublicKey, 
 	)
 
 	combineDur := time.Since(start)
-	log.Printf("[TIME] COMBINATION  %s for 2 parties out of 5", combineDur)
+	log.Printf("[TIME] COMBINATION  %s for 2 parties out of %d", combineDur, state.N)
 
 	if !ok {
 		return
@@ -115,7 +117,7 @@ func runCombine(state *ProtocolState, msg, ctx []byte, pk *thmldsa44.PublicKey, 
 	*sigOut = make([]byte, thmldsa44.SignatureSize)
 	copy(*sigOut, sig[:])
 
-	log.Printf("Combine success! Signature: %x", *sigOut)
+	log.Printf("Combine success! The signature is: %x", *sigOut)
 
 	done <- struct{}{}
 }
@@ -155,17 +157,18 @@ func readData(rw *bufio.ReadWriter, state *ProtocolState, signature *[]byte, don
 		case "R1\n":
 			state.Msgs1[otherID] = msg
 			state.CompletedR1++
-			log.Printf("Received Round1 (%d/%d)", state.CompletedR1, state.N-1)
+			log.Printf("Received Round1 (%d/%d)", state.CompletedR1, state.T-1)
 		case "R2\n":
 			state.Msgs2[otherID] = msg
 			state.CompletedR2++
-			log.Printf("Received Round2 (%d/%d)", state.CompletedR2, state.N-1)
+			log.Printf("Received Round2 (%d/%d)", state.CompletedR2, state.T-1)
 		case "R3\n":
 			state.Msgs3[otherID] = msg
-			log.Printf("Received Round3 (%d/%d)", len(state.Msgs3), state.N-1)
+			log.Printf("Received Round3 (%d/%d)", len(state.Msgs3), state.T-1)
 			if state.done == true {
 				go runCombine(state, []byte("the message"), []byte(""), state.pk, signature, done)
 			}
+		// LOG messages to measure latency
 		case "PING\n":
 			rw.WriteString("PONG\n")
 			rw.WriteString("0\n")
@@ -229,7 +232,7 @@ func runProtocolLoop(rw *bufio.ReadWriter, state *ProtocolState) {
 
 		for {
 			state.Lock()
-			if state.CompletedR1 >= state.N-1 {
+			if state.CompletedR1 >= state.T-1 {
 				state.CompletedR1 = 0
 				state.Unlock()
 				break
@@ -270,7 +273,7 @@ func runProtocolLoop(rw *bufio.ReadWriter, state *ProtocolState) {
 
 		for {
 			state.Lock()
-			if state.CompletedR2 >= state.N-1 {
+			if state.CompletedR2 >= state.T-1 {
 				state.Unlock()
 				state.CompletedR2 = 0
 				break
@@ -308,6 +311,7 @@ func runProtocolLoop(rw *bufio.ReadWriter, state *ProtocolState) {
 		}
 	}
 
+	// Print times
 	fmt.Printf("Party %d - Avg Round 1 Local Computation Time: %s\n", state.ID, signRound1TotalDur[state.ID]/time.Duration(attemptCount))
 	fmt.Printf("Party %d - Avg Round 1 Network Send Time: %s\n", state.ID, networkRound1Dur[state.ID]/time.Duration(attemptCount))
 	fmt.Printf("Party %d - Avg Round 2 Local Computation Time: %s\n", state.ID, signRound2TotalDur[state.ID]/time.Duration(attemptCount))
@@ -322,16 +326,23 @@ func main() {
 
 	sourcePort := flag.Int("sp", 0, "Source port number")
 	dest := flag.String("d", "", "Destination multiaddr string")
+
+	// The id of the party
 	id := flag.Int("id", 0, "Party ID (0, 1, etc.)")
+	// The n number of parties
+	n := flag.Int("n", 6, "Total number of parties")
+
 	help := flag.Bool("help", false, "Display help")
 	debug := flag.Bool("debug", false, "Debug generates the same node ID on every execution")
 
 	flag.Parse()
 
 	if *help {
-		fmt.Printf("This program demonstrates a simple p2p chat application using libp2p\n\n")
-		fmt.Println("Usage: Run './chat -sp <SOURCE_PORT>' where <SOURCE_PORT> can be any port number.")
-		fmt.Println("Now run './chat -d <MULTIADDR>' where <MULTIADDR> is multiaddress of previous listener host.")
+		fmt.Printf("This program demonstrates a simple p2p threshold chat application using libp2p\n\n")
+		fmt.Println("Usage:")
+		fmt.Println("  ./chat -sp <SOURCE_PORT> -id <ID> -n <TOTAL_PARTIES>")
+		fmt.Println("To connect:")
+		fmt.Println("  ./chat -d <MULTIADDR> -id <ID> -n <TOTAL_PARTIES>")
 
 		os.Exit(0)
 	}
@@ -359,14 +370,15 @@ func main() {
 
 	var seed [32]byte
 	binary.LittleEndian.PutUint64(seed[:], 1)
-	params, _ := thmldsa44.GetThresholdParams(uint8(2), uint8(6))
+	params, _ := thmldsa44.GetThresholdParams(uint8(2), uint8(*n))
 	pk, sk := thmldsa44.NewThresholdKeysFromSeed(&seed, params)
 
 	genDur = time.Since(start)
-	log.Printf("[TIME] GENERATION OF KEYS %s for 2 parties out of 5", genDur)
+	log.Printf("[TIME] GENERATION OF KEYS %s for 2 parties out of %d", genDur, *n)
 
 	state := &ProtocolState{
-		N:      2,
+		N:      *n,
+		T:      2,
 		ID:     *id,
 		Params: params,
 		SKs:    sk,
@@ -380,7 +392,7 @@ func main() {
 	done := make(chan struct{})
 
 	if *dest == "" {
-		startPeer(ctx, h, makeStreamHandler(state, &signature, done), state.ID)
+		startPeer(ctx, h, makeStreamHandler(state, &signature, done), state.ID, *n)
 	} else {
 		rw, err := startPeerAndConnect(ctx, h, *dest)
 		if err != nil {
@@ -401,7 +413,7 @@ func main() {
 	} else {
 		fmt.Println("Signature verified successfully.")
 	}
-	log.Printf("[TIME] VERIFICATION OF SIGS %s for 2 parties out of 5", verDur)
+	log.Printf("[TIME] VERIFICATION OF SIGS %s for 2 parties out of %d", verDur, n)
 }
 
 func makeHost(port int, randomness io.Reader) (host.Host, error) {
@@ -423,7 +435,7 @@ func makeHost(port int, randomness io.Reader) (host.Host, error) {
 	)
 }
 
-func startPeer(ctx context.Context, h host.Host, streamHandler network.StreamHandler, ID int) {
+func startPeer(ctx context.Context, h host.Host, streamHandler network.StreamHandler, ID, n int) {
 	// Set a function as stream handler.
 	// This function is called when a peer connects, and starts a stream with this protocol.
 	// Only applies on the receiving side.
@@ -443,7 +455,7 @@ func startPeer(ctx context.Context, h host.Host, streamHandler network.StreamHan
 		return
 	}
 
-	log.Printf("Run './chat -d /ip4/127.0.0.1/tcp/%v/p2p/%s -id %d' on another console.\n", port, h.ID(), ID+1)
+	log.Printf("Run './chat -d /ip4/127.0.0.1/tcp/%v/p2p/%s -id %d -n %d' on another console.\n", port, h.ID(), ID+1, n)
 	log.Println("You can replace 127.0.0.1 with public IP as well.")
 	log.Println("Waiting for incoming connection")
 	log.Println()
