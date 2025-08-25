@@ -113,6 +113,19 @@ func NewChatNode(h host.Host) *ChatNode {
 	}
 }
 
+// Active-set helpers (first T parties in sorted order)
+func (c *ChatNode) actMask() uint8        { return uint8((1 << c.T) - 1) }
+func (c *ChatNode) isActive(idx int) bool { return idx < c.T }
+func (c *ChatNode) filterByAct(all [][]byte) [][]byte {
+	out := make([][]byte, 0, c.T)
+	for i := range c.order {
+		if c.isActive(i) {
+			out = append(out, all[i])
+		}
+	}
+	return out
+}
+
 // Peer management
 func (c *ChatNode) addPeer(id peer.ID, rw *bufio.ReadWriter) {
 	c.mu.Lock()
@@ -152,14 +165,14 @@ func (c *ChatNode) maybeStart() {
 		c.mu.Unlock()
 		return
 	}
-	if len(c.peers)+1 < c.T {
+	if len(c.peers)+1 < c.N {
 		c.mu.Unlock()
 		return
-	}
+	} // wait for N, not T
 	c.started = true
 	pi := c.partyIndex
 	c.mu.Unlock()
-	log.Printf("All %d parties connected. I am party %d.", c.T, pi)
+	log.Printf("All %d parties connected. I am party %d.", c.N, pi)
 	go c.runSigningSession()
 }
 
@@ -381,7 +394,7 @@ func (c *ChatNode) runSigningSession() {
 	copy(c.msg, []byte("message")) // You can change me if wanted
 	c.ctx = make([]byte, 48)
 
-	// Params
+	// Params (note: our usage of N and K)
 	params, err := thmldsa44.GetThresholdParams(uint8(c.T), uint8(c.N))
 	if err != nil {
 		log.Fatalf("Get params error: %v", err)
@@ -411,7 +424,7 @@ func (c *ChatNode) runSigningSession() {
 	my := sks[c.partyIndex]
 	c.sk = &my
 
-	// Attempts 0..569, each does a round R1 to R2 to R3; leader (party 00) tries Combine and Verify if ok, then DONE.
+	// Attempts 0..569, each does R1->R2->R3; leader tries Combine and Verify if ok, then DONE.
 	for a := 0; a < Attempts; a++ {
 		select {
 		case <-c.doneCh:
@@ -419,59 +432,72 @@ func (c *ChatNode) runSigningSession() {
 		default:
 		}
 
-		// Round 1
-		msg1, st1, err := thmldsa44.Round1(c.sk, c.params)
-		if err != nil {
-			log.Printf("R1 err a=%d: %v", a, err)
-			continue
+		var st1 thmldsa44.StRound1
+		var st2 thmldsa44.StRound2
+
+		// Round 1 (only active parties emit)
+		if c.isActive(c.partyIndex) {
+			msg1, st1local, err := thmldsa44.Round1(c.sk, c.params)
+			if err != nil {
+				log.Printf("R1 err a=%d: %v", a, err)
+				continue
+			}
+			st1 = st1local
+			c.saveState1(a, st1)
+			c.broadcastJSON(WireMsg{Type: "R1", Attempt: a, From: c.host.ID().String(), Payload: msg1})
+			c.ingest("R1", a, c.host.ID().String(), msg1)
 		}
-		c.saveState1(a, st1)
-		c.broadcastJSON(WireMsg{Type: "R1", Attempt: a, From: c.host.ID().String(), Payload: msg1})
-		c.ingest("R1", a, c.host.ID().String(), msg1)
 		if !c.waitAll("R1", a) {
 			return
 		}
 
-		// Round 2
-		msgs1 := c.collectRound("R1", a)
-		act := uint8((1 << c.T) - 1)
-		msg2, st2, err := thmldsa44.Round2(c.sk, act, c.msg, c.ctx, msgs1, &st1, c.params)
-		if err != nil {
-			log.Printf("R2 err a=%d: %v", a, err)
-			continue
+		// Round 2 (filter to T active msgs)
+		msgs1All := c.collectRound("R1", a)
+		msgs1 := c.filterByAct(msgs1All)
+		if c.isActive(c.partyIndex) {
+			act := c.actMask()
+			msg2, st2local, err := thmldsa44.Round2(c.sk, act, c.msg, c.ctx, msgs1, &st1, c.params)
+			if err != nil {
+				log.Printf("R2 err a=%d: %v", a, err)
+				continue
+			}
+			st2 = st2local
+			c.saveState2(a, st2)
+			c.broadcastJSON(WireMsg{Type: "R2", Attempt: a, From: c.host.ID().String(), Payload: msg2})
+			c.ingest("R2", a, c.host.ID().String(), msg2)
 		}
-		c.saveState2(a, st2)
-		c.broadcastJSON(WireMsg{Type: "R2", Attempt: a, From: c.host.ID().String(), Payload: msg2})
-		c.ingest("R2", a, c.host.ID().String(), msg2)
 		if !c.waitAll("R2", a) {
 			return
 		}
 
-		// Round 3
-		msgs2 := c.collectRound("R2", a)
-		msg3, err := thmldsa44.Round3(c.sk, msgs2, &st1, &st2, c.params)
-		if err != nil {
-			log.Printf("R3 err a=%d: %v", a, err)
-			continue
+		// Round 3 (filter to T active msgs)
+		msgs2All := c.collectRound("R2", a)
+		msgs2 := c.filterByAct(msgs2All)
+		if c.isActive(c.partyIndex) {
+			msg3, err := thmldsa44.Round3(c.sk, msgs2, &st1, &st2, c.params)
+			if err != nil {
+				log.Printf("R3 err a=%d: %v", a, err)
+				continue
+			}
+			c.broadcastJSON(WireMsg{Type: "R3", Attempt: a, From: c.host.ID().String(), Payload: msg3})
+			c.ingest("R3", a, c.host.ID().String(), msg3)
 		}
-		c.broadcastJSON(WireMsg{Type: "R3", Attempt: a, From: c.host.ID().String(), Payload: msg3})
-		c.ingest("R3", a, c.host.ID().String(), msg3)
 		if !c.waitAll("R3", a) {
 			return
 		}
 
-		// Combine (leader only). Verify ONLY if combine is true.
+		// Combine (leader only) using filtered T-length arrays. Verify ONLY if combine is true.
 		if c.partyIndex == 0 {
 			sig := make([]byte, thmldsa44.SignatureSize)
-			msgs2 := c.collectRound("R2", a)
-			msgs3 := c.collectRound("R3", a)
+			msgs2C := c.filterByAct(c.collectRound("R2", a))
+			msgs3C := c.filterByAct(c.collectRound("R3", a))
 			start := time.Now()
-			ok := thmldsa44.Combine(c.pk, c.msg, c.ctx, msgs2, msgs3, sig, c.params)
+			ok := thmldsa44.Combine(c.pk, c.msg, c.ctx, msgs2C, msgs3C, sig, c.params)
 			if !ok {
 				continue
 			}
 			log.Printf("[attempt %d] Combine ok in %s", a, time.Since(start))
-			if !thmldsa44.Verify(c.pk, c.msg, c.ctx, sig) { // verify only on success
+			if !thmldsa44.Verify(c.pk, c.msg, c.ctx, sig) {
 				log.Printf("[attempt %d] Verify failed (unexpected)", a)
 				continue
 			}
