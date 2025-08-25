@@ -10,8 +10,6 @@
 //
 // Behavior:
 // - Exactly N parties (including self) must be connected to start.
-// - Attempts are FIXED to 570 (as requested), NOT a CLI param.
-// - For each attempt a=0..569, every party runs R1 -> wait-all -> R2 -> wait-all -> R3 -> wait-all.
 // - Party 0 (leader) runs Combine for that attempt; it calls Verify ONLY if Combine==true.
 // - On the first successful Combine, leader broadcasts DONE and all parties stop.
 
