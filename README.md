@@ -3,7 +3,6 @@
 This repository contains implementations from the research paper:
 
 **"Efficient Threshold ML-DSA up to 6 parties"**
-*Sofia Celi, Rafael del Pino, Thomas Espitau, Guilhem Niot, Thomas Prest*, which created a threshold (T out of N) version of the MLDSA signature scheme.
 
 ## Warning
 
