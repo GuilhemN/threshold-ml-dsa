@@ -139,34 +139,34 @@ func GetThresholdParams(t, n uint8) (*ThresholdParams, error) {
 	var r, rPrime float64
 	nu := float64(3.)
 	if t == 2 && n == 2 { // N = 2
-		k = uint16(2)   // Number of iterations
-		r = 252778      // Primary radius
-		rPrime = 252833 // Secondary radius
+		k = uint16(3)   // Number of iterations
+		r = 501495      // Primary radius
+		rPrime = 501613 // Secondary radius
 	} else if n == 3 { // N = 3
-		ks := []uint16{3, 4}
-		rs := []float64{310060, 246490}
-		rPs := []float64{310138, 246546}
+		ks := []uint16{5, 9}
+		rs := []float64{540212, 540378}
+		rPs := []float64{510387, 510504}
 		k = ks[t-2]
 		r = rs[t-2]
 		rPrime = rPs[t-2]
 	} else if n == 4 { // N = 3
-		ks := []uint16{3, 7, 8}
-		rs := []float64{305919, 279235, 243463}
-		rPs := []float64{305997, 279314, 243519}
+		ks := []uint16{6, 20, 26}
+		rs := []float64{540212, 506761, 433594}
+		rPs := []float64{540378, 506928, 433711}
 		k = ks[t-2]
 		r = rs[t-2]
 		rPrime = rPs[t-2]
 	} else if n == 5 { // N = 3
-		ks := []uint16{3, 14, 30, 16}
-		rs := []float64{285363, 282800, 259427, 239924}
-		rPs := []float64{285459, 282912, 259526, 239981}
+		ks := []uint16{8, 62, 205, 78}
+		rs := []float64{552371, 552909, 474331, 425914}
+		rPs := []float64{552575, 553145, 474535, 426032}
 		k = ks[t-2]
 		r = rs[t-2]
 		rPrime = rPs[t-2]
 	} else if n == 6 { // N = 3
-		ks := []uint16{4, 19, 74, 100, 37}
-		rs := []float64{300265, 277014, 268705, 250590, 219245}
-		rPs := []float64{300362, 277139, 268831, 250686, 219301}
+		ks := []uint16{8, 95, 804, 1200, 250}
+		rs := []float64{571208, 536793, 488704, 461324, 414896}
+		rPs := []float64{571412, 537058, 488969, 461529, 415013}
 		k = ks[t-2]
 		r = rs[t-2]
 		rPrime = rPs[t-2]
