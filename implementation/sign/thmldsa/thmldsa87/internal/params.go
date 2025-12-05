@@ -3,16 +3,16 @@
 package internal
 
 const (
-	Name          = "ML-DSA-65"
-	K             = 6
-	L             = 5
-	Eta           = 4
-	DoubleEtaBits = 4
-	Omega         = 55
-	Tau           = 49
+	Name          = "ML-DSA-87"
+	K             = 8
+	L             = 7
+	Eta           = 2
+	DoubleEtaBits = 3
+	Omega         = 75
+	Tau           = 60
 	Gamma1Bits    = 19
 	Gamma2        = 261888
 	NIST          = true
 	TRSize        = 64
-	CTildeSize    = 48
+	CTildeSize    = 64
 )
