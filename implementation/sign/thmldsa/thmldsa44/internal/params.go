@@ -15,6 +15,4 @@ const (
 	NIST          = true
 	TRSize        = 64
 	CTildeSize    = 32
-	B 		      = 221116.151669661
-	B0            = 221041.3274003604
 )

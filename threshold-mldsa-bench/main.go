@@ -14,8 +14,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	if len(os.Args) > 5 {
-		fmt.Println("Only four args are allowed")
+	if len(os.Args) > 6 {
+		fmt.Println("Only five args are allowed")
 		os.Exit(1)
 	}
 
@@ -53,11 +53,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	p, ok := args["p"]
+	if !ok {
+		fmt.Println("Missing p parameter.")
+		os.Exit(1)
+	}
+
 	var err error
-	var iters, threshold, parties int
+	var iters, threshold, parties, param int
 	iters, err = strconv.Atoi(iterStr)
 	threshold, err = strconv.Atoi(t)
 	parties, err = strconv.Atoi(n)
+	param, err = strconv.Atoi(p)
 	if err != nil {
 		fmt.Println("Error: Please enter a valid integer for params.")
 		os.Exit(1)
@@ -70,6 +77,7 @@ func main() {
 
 	sign.K = parties
 	sign.Threshold = threshold
+	sign.Param = param
 
 	if partyID == "d" {
 		sign.LocalThresholdDilithiumRun(iters)
