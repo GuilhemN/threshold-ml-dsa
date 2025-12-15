@@ -14,6 +14,7 @@ This repository includes the following implementation:
 
 - **implementation**: *Threshold ML-DSA* implementation (our scheme) based on the [CIRCL](https://github.com/cloudflare/circl) library.
 Note that we use only the needed functionality from CIRCL.
+We implemented for all ML-DSA security levels (44, 65, 87).
 
 We additionally provide our benchmarking tools:
 
@@ -53,19 +54,20 @@ Navigate to the `threshold-mldsa-bench` directory and run:
 
 ```bash
 cd threshold-mldsa-bench
-go run main.go type=d iter=<iterations> t=<threshold> n=<parties>
+go run main.go type=d iter=<iterations> t=<threshold> n=<parties> p=<parameter-set>
 ```
 
 **Parameters:**
 - `iter`: Number of iterations to average latencies over (use 1 for single run)
 - `t`: Threshold value (number of parties required to sign)
 - `n`: Total number of parties (maximum 6 parties allowed)
+- `p`: ML-DSA parameter set (either 65, 44 or 87)
 
 **Example:**
 
 ```bash
-# Run 100 iterations with threshold 3 out of 5 parties
-go run main.go type=d iter=100 t=3 n=5
+# Run 100 iterations with threshold 3 out of 5 parties for ML-DSA-44
+go run main.go type=d iter=100 t=3 n=5 -p=44
 ```
 
 ### Network Benchmarks (LAN/WAN)
