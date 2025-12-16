@@ -72,7 +72,7 @@ go run main.go type=d iter=100 t=3 n=5 -p=44
 
 ### Network Benchmarks (LAN/WAN)
 
-Use the go-libp2p chat example for distributed experiments. We provide two files `chat.go` and `thchat.go`.
+Use the go-libp2p chat example for distributed experiments. We provide two files `chat.go` and `thchat.go`: both only work for ML-DSA-44.
 
 #### Chat.go
 
@@ -80,7 +80,7 @@ You can build via:
 
 ```bash
 cd go-libp2p/examples/chat
-go build chat chat.go
+go build -o chat chat.go
 ```
 
 Then run on two different machines:
@@ -99,7 +99,7 @@ You can build via:
 
 ```bash
 cd go-libp2p/examples/thchat
-go build thchat thchat.go
+go build -o thchat thchat.go
 ```
 
 Then run on two different machines:
