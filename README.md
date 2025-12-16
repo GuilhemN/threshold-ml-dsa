@@ -72,7 +72,7 @@ go run main.go type=d iter=100 t=3 n=5 -p=44
 
 ### Network Benchmarks (LAN/WAN)
 
-Use the go-libp2p chat example for distributed experiments. We provide two files `chat.go` and `thchat.go`: both only work for ML-DSA-44.
+Use the go-libp2p chat example for distributed experiments. We provide two files `chat.go` (for a fixed `t = 2` and variable `n`) and `thchat.go` (for variable `t` and `n`): both only work for ML-DSA-44.
 
 #### Chat.go
 
